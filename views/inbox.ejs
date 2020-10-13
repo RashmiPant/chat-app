@@ -1,0 +1,127 @@
+<div class="messaging">
+    <div class="inbox_msg">
+        <div class="inbox_people">
+            <div class="heading">
+                <h4>Welcome <%= user%> </h4>
+            </div>
+            <div class="users">Active Chats</div>
+            <div class="inbox_chat">
+                <% for (let i=0; i< users.length; i++){ %>
+                <% if(users[i].name!=user){ %>
+                <div class="chat_list">
+                    <div class="chat_people">
+                        <div class="chat_ib">
+                            <h6>
+                                <%= users[i].name %>
+                            </h6>
+                        </div>
+                        <input type="hidden" class="u" value="<%= users[i].id %>" />
+                    </div>
+                </div>
+                <% } %>
+                <% } %>
+            </div>
+        </div>
+        <div class="mesgs" style="display:none">
+            <% for (let i=0; i< users.length; i++){ %>
+            <% if(users[i].name!=user){ %>
+            <div class="msg_history" id='<%= users[i].name %>'>
+                <div class="col-12 mb-3 pt-0 mt-0">
+                    <span id="username"></span>
+                </div>
+            </div>
+            <% } %>
+            <% } %>
+            <div class="type_msg">
+                <div class="input_msg_write">
+                    <input type="text" class="write_msg" placeholder="Type a message"
+                        style="border:0; outline: none;" />
+                    <button class="msg_send_btn" type="button">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<script src="/javascripts/socket.io.js"></script>
+<script src="/javascripts/moment.min.js"></script>
+<script>
+    $(document).ready(function () {
+        let username = null;
+        let myname = '<%= user %>';
+        let socket = io('http://localhost:3000', {
+            query: {
+                username: '<%= user %>'
+            }
+        });
+        $(window).on("focus", (e) => {
+            socket.emit("msgRead", { name: myname.trim() })
+        })
+        socket.on("message", function (data) {
+            console.log("Got message")
+            if (myname.trim() == data.from.trim()) {
+                $(`#${data.to.trim()}`).append(
+                    `<div class="outgoing_msg">
+                    <div class="sent_msg">
+                        <p>${data.msg}</p>
+                    </div>
+                </div>`
+                )
+            } else if (myname.trim() == data.to.trim()) {
+
+                $(`#${data.from.trim()}`).append(
+                    `<div class="incoming_msg">
+                    <div class="received_msg">
+                            <p>${data.msg}</p>
+                    </div>
+                </div>`
+                )
+            } else if ("Group" == data.to.trim()) {
+                $(`#Group`).append(
+                    `<div class="incoming_msg">
+                    <div class="received_msg">
+                            <p>${data.from}: ${data.msg}</p>
+                    </div>
+                </div>`)
+            }
+
+        })
+        socket.on('newuser', function (data) {
+            if (data.name != username) {
+                console.log(`${data.name} joined`);
+            }
+        })
+        socket.on('disconnect', function () { });
+        username = $(this).find(".chat_ib").text();
+
+        $(".chat_list").on('click', function () {
+            $(".chat_list").removeClass("active_chat")
+            $(this).addClass("active_chat")
+            $("#username").html($(this).find(".chat_ib").text());
+            $(".mesgs").show();
+            $(".msg_history").removeClass("active_user")
+            $(`#${$(document).find("#username").text().trim()}`).addClass("active_user")
+        })
+        $(".msg_send_btn").on("click", function () {
+            sendMessage();
+        })
+        $(".write_msg").keyup(function (event) {
+            if (event.which == 13) {
+                sendMessage()
+            }
+        })
+
+        function sendMessage() {
+            let data = $(".write_msg").val();
+            socket.emit('message', {
+                from: myname.trim(),
+                to: $(document).find("#username").text().trim(),
+                msg: data,
+                readStatus: false
+            });
+            $(".write_msg").val("");
+        }
+    });
+</script>
